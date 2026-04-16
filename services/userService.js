@@ -1,9 +1,11 @@
 const bcrypt = require('bcryptjs');
 
-const { findUserByEmail, updateUserById } = require('../models/userModel');
+const { updateUserById } = require('../models/userModel');
 const { serializeUser } = require('../utils/auth');
 const { validationError } = require('../utils/errors');
 const { recordAudit } = require('./auditService');
+
+const UPDATE_USER_ALLOWED_FIELDS = new Set(['password', 'image', 'bio']);
 
 async function recordUpdateFailureAudit(currentUser, req, details) {
   await recordAudit(currentUser.id, 'user.update', req, {
@@ -22,19 +24,23 @@ async function getCurrentUser(currentUser, req) {
 
 async function updateCurrentUser(currentUser, payload, req) {
   try {
-    if (payload.email && payload.email !== currentUser.email) {
-      const existingEmail = await findUserByEmail(payload.email);
-      if (existingEmail && existingEmail.id !== currentUser.id) {
-        const error = validationError({ email: ['has already been taken'] });
+    const invalidFields = Object.keys(payload).filter((field) => !UPDATE_USER_ALLOWED_FIELDS.has(field));
 
-        await recordUpdateFailureAudit(currentUser, req, {
-          reason: 'email_taken',
-          updatedFields: Object.keys(payload),
-          errors: error.details
-        });
+    if (invalidFields.length > 0) {
+      const error = validationError(
+        invalidFields.reduce((accumulator, field) => {
+          accumulator[field] = ['is not allowed'];
+          return accumulator;
+        }, {})
+      );
 
-        throw error;
-      }
+      await recordUpdateFailureAudit(currentUser, req, {
+        reason: 'validation_error',
+        updatedFields: Object.keys(payload),
+        errors: error.details
+      });
+
+      throw error;
     }
 
     const updates = { ...payload };
