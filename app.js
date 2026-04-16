@@ -4,6 +4,7 @@ const cors = require('cors');
 const express = require('express');
 
 const { initDb } = require('./config/db');
+const articleRoutes = require('./routes/articleRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
@@ -22,6 +23,7 @@ app.get('/hello', (req, res) => {
 app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api', profileRoutes);
+app.use('/api', articleRoutes);
 app.use('/api', auditRoutes);
 
 app.use((req, res) => {
