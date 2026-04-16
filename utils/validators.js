@@ -1,5 +1,7 @@
 const { validationError } = require('./errors');
 
+const UPDATE_USER_ALLOWED_FIELDS = ['email', 'password', 'image', 'bio'];
+
 function requireUserFields(body, fields) {
   if (!body || typeof body !== 'object' || !body.user || typeof body.user !== 'object') {
     throw validationError({ user: ['is required'] });
@@ -26,17 +28,24 @@ function getUpdateUserPayload(body) {
     throw validationError({ user: ['is required'] });
   }
 
-  const allowedFields = ['email', 'username', 'password', 'image', 'bio'];
   const updates = {};
   const errors = {};
+  const providedFields = Object.keys(body.user);
+  const disallowedFields = providedFields.filter((field) => !UPDATE_USER_ALLOWED_FIELDS.includes(field));
 
-  allowedFields.forEach((field) => {
+  if (disallowedFields.length > 0) {
+    disallowedFields.forEach((field) => {
+      errors[field] = ['is not allowed'];
+    });
+  }
+
+  UPDATE_USER_ALLOWED_FIELDS.forEach((field) => {
     if (Object.prototype.hasOwnProperty.call(body.user, field)) {
       updates[field] = body.user[field];
     }
   });
 
-  ['email', 'username', 'password'].forEach((field) => {
+  ['email', 'password'].forEach((field) => {
     if (
       Object.prototype.hasOwnProperty.call(updates, field) &&
       (typeof updates[field] !== 'string' || updates[field].trim() === '')
@@ -54,6 +63,10 @@ function getUpdateUserPayload(body) {
       errors[field] = ['must be a string or null'];
     }
   });
+
+  if (providedFields.length === 0) {
+    errors.user = ['at least one allowed field is required'];
+  }
 
   if (Object.keys(errors).length > 0) {
     throw validationError(errors);

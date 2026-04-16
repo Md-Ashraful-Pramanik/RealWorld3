@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 
-const { findUserByEmail, findUserByUsername, updateUserById } = require('../models/userModel');
+const { findUserByEmail, updateUserById } = require('../models/userModel');
 const { serializeUser } = require('../utils/auth');
 const { validationError } = require('../utils/errors');
 const { recordAudit } = require('./auditService');
@@ -18,13 +18,6 @@ async function updateCurrentUser(currentUser, payload, req) {
     const existingEmail = await findUserByEmail(payload.email);
     if (existingEmail && existingEmail.id !== currentUser.id) {
       throw validationError({ email: ['has already been taken'] });
-    }
-  }
-
-  if (payload.username && payload.username !== currentUser.username) {
-    const existingUsername = await findUserByUsername(payload.username);
-    if (existingUsername && existingUsername.id !== currentUser.id) {
-      throw validationError({ username: ['has already been taken'] });
     }
   }
 

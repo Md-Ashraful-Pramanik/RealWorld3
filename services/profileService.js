@@ -7,13 +7,23 @@ async function getProfile(username, currentUser, req) {
   const targetUser = await findUserByUsername(username);
 
   if (!targetUser) {
+    if (currentUser) {
+      await recordAudit(currentUser.id, 'profile.view', req, {
+        username,
+        result: 'not_found'
+      });
+    }
+
     throw notFound('profile not found');
   }
 
   const profile = await getProfileByUserId(targetUser.id, currentUser ? currentUser.id : null);
 
   if (currentUser) {
-    await recordAudit(currentUser.id, 'profile.view', req, { username });
+    await recordAudit(currentUser.id, 'profile.view', req, {
+      username,
+      result: 'success'
+    });
   }
 
   return { profile };
