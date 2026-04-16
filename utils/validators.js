@@ -1,6 +1,6 @@
 const { validationError } = require('./errors');
 
-const UPDATE_USER_ALLOWED_FIELDS = ['email', 'password', 'image', 'bio'];
+const UPDATE_USER_ALLOWED_FIELDS = ['password', 'image', 'bio'];
 
 function requireUserFields(body, fields) {
   if (!body || typeof body !== 'object' || !body.user || typeof body.user !== 'object') {
@@ -45,7 +45,7 @@ function getUpdateUserPayload(body) {
     }
   });
 
-  ['email', 'password'].forEach((field) => {
+  ['password'].forEach((field) => {
     if (
       Object.prototype.hasOwnProperty.call(updates, field) &&
       (typeof updates[field] !== 'string' || updates[field].trim() === '')

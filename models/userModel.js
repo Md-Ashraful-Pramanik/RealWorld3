@@ -47,7 +47,6 @@ async function createUser({ username, email, passwordHash, bio = null, image = n
 
 async function updateUserById(id, fields) {
   const fieldMap = {
-    email: 'email',
     passwordHash: 'password_hash',
     image: 'image',
     bio: 'bio'
