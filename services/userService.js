@@ -5,6 +5,13 @@ const { serializeUser } = require('../utils/auth');
 const { validationError } = require('../utils/errors');
 const { recordAudit } = require('./auditService');
 
+async function recordUpdateFailureAudit(currentUser, req, details) {
+  await recordAudit(currentUser.id, 'user.update', req, {
+    result: 'failed',
+    ...details
+  });
+}
+
 async function getCurrentUser(currentUser, req) {
   await recordAudit(currentUser.id, 'user.current', req);
 
@@ -14,28 +21,49 @@ async function getCurrentUser(currentUser, req) {
 }
 
 async function updateCurrentUser(currentUser, payload, req) {
-  if (payload.email && payload.email !== currentUser.email) {
-    const existingEmail = await findUserByEmail(payload.email);
-    if (existingEmail && existingEmail.id !== currentUser.id) {
-      throw validationError({ email: ['has already been taken'] });
+  try {
+    if (payload.email && payload.email !== currentUser.email) {
+      const existingEmail = await findUserByEmail(payload.email);
+      if (existingEmail && existingEmail.id !== currentUser.id) {
+        const error = validationError({ email: ['has already been taken'] });
+
+        await recordUpdateFailureAudit(currentUser, req, {
+          reason: 'email_taken',
+          updatedFields: Object.keys(payload),
+          errors: error.details
+        });
+
+        throw error;
+      }
     }
+
+    const updates = { ...payload };
+    if (updates.password) {
+      updates.passwordHash = await bcrypt.hash(updates.password, 10);
+      delete updates.password;
+    }
+
+    const user = await updateUserById(currentUser.id, updates);
+
+    await recordAudit(user.id, 'user.update', req, {
+      result: 'success',
+      updatedFields: Object.keys(payload)
+    });
+
+    return {
+      user: serializeUser(user)
+    };
+  } catch (error) {
+    if (!error.statusCode) {
+      await recordUpdateFailureAudit(currentUser, req, {
+        reason: 'unexpected_error',
+        updatedFields: Object.keys(payload),
+        message: error.message
+      });
+    }
+
+    throw error;
   }
-
-  const updates = { ...payload };
-  if (updates.password) {
-    updates.passwordHash = await bcrypt.hash(updates.password, 10);
-    delete updates.password;
-  }
-
-  const user = await updateUserById(currentUser.id, updates);
-
-  await recordAudit(user.id, 'user.update', req, {
-    updatedFields: Object.keys(payload)
-  });
-
-  return {
-    user: serializeUser(user)
-  };
 }
 
 module.exports = {
