@@ -15,6 +15,10 @@ function unauthorized(message = 'unauthorized') {
   return new ApiError(401, message);
 }
 
+function forbidden(message = 'forbidden') {
+  return new ApiError(403, message);
+}
+
 function notFound(message = 'not found') {
   return new ApiError(404, message);
 }
@@ -26,6 +30,7 @@ function validationError(details) {
 module.exports = {
   ApiError,
   badRequest,
+  forbidden,
   notFound,
   unauthorized,
   validationError
