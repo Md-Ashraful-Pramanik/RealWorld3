@@ -15,8 +15,9 @@ async function recordAudit(userId, action, req, details = {}) {
 }
 
 async function listAuditsForUser(user, req) {
-  await recordAudit(user.id, 'audit.list', req);
   const audits = await getAuditsByUserId(user.id);
+
+  await recordAudit(user.id, 'audit.list', req);
 
   return {
     audits
