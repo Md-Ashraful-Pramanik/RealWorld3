@@ -77,6 +77,15 @@ async function unfollowProfile(currentUser, username, req) {
     throw notFound('profile not found');
   }
 
+  if (targetUser.id === currentUser.id) {
+    await auditProfileAction(currentUser, 'profile.unfollow', req, {
+      username,
+      result: 'self_unfollow_blocked'
+    });
+
+    throw badRequest('you cannot unfollow yourself');
+  }
+
   await unfollowUser(currentUser.id, targetUser.id);
   const profile = await getProfileByUserId(targetUser.id, currentUser.id);
 
