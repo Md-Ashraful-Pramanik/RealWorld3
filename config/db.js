@@ -69,7 +69,21 @@ async function initDb() {
   await query('ALTER TABLE audits ALTER COLUMN action TYPE VARCHAR(100)');
   await query('ALTER TABLE audits ALTER COLUMN method TYPE VARCHAR(10)');
   await query('ALTER TABLE audits ALTER COLUMN path TYPE TEXT');
-  await query('ALTER TABLE audits ALTER COLUMN status_code DROP NOT NULL');
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'audits'
+          AND column_name = 'status_code'
+      ) THEN
+        ALTER TABLE audits ALTER COLUMN status_code DROP NOT NULL;
+      END IF;
+    END
+    $$;
+  `);
 
   await query('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_unique ON users(username)');
   await query('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email)');
