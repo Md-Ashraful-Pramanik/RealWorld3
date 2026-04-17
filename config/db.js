@@ -131,6 +131,8 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS article_tags (
       article_id BIGINT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
       tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      tag VARCHAR(100) NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       deleted_at TIMESTAMPTZ DEFAULT NULL,
@@ -141,10 +143,20 @@ async function initDb() {
 
   await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS article_id BIGINT REFERENCES articles(id) ON DELETE CASCADE');
   await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS tag_id BIGINT REFERENCES tags(id) ON DELETE CASCADE');
+  await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS tag VARCHAR(100)');
+  await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0');
   await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()');
   await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()');
   await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
   await query('ALTER TABLE article_tags ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL');
+  await query(`
+    UPDATE article_tags at
+    SET tag = COALESCE(at.tag, t.name)
+    FROM tags t
+    WHERE at.tag_id = t.id
+      AND at.tag IS NULL
+  `);
+  await query('UPDATE article_tags SET position = 0 WHERE position IS NULL');
 
   await query(`
     CREATE TABLE IF NOT EXISTS article_favorites (
