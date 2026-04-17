@@ -9,6 +9,7 @@ const auditRoutes = require('./routes/auditRoutes');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const userRoutes = require('./routes/userRoutes');
+const { ApiError } = require('./utils/errors');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -31,14 +32,16 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(err);
-
   if (err.code === '23505') {
     return res.status(422).json({
       errors: {
         body: [err.detail || 'resource already exists']
       }
     });
+  }
+
+  if (!(err instanceof ApiError) || err.statusCode >= 500) {
+    console.error(err);
   }
 
   const statusCode = err.statusCode || 500;

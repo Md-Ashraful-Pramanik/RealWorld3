@@ -3,6 +3,39 @@ const { validationError } = require('./errors');
 const UPDATE_USER_ALLOWED_FIELDS = ['password', 'image', 'bio'];
 const UPDATE_ARTICLE_ALLOWED_FIELDS = ['title', 'description', 'body'];
 
+function decodeMarkupTokens(value) {
+  return value
+    .replace(/&lt;|&#60;|&#x3c;/gi, '<')
+    .replace(/&gt;|&#62;|&#x3e;/gi, '>')
+    .replace(/&quot;|&#34;|&#x22;/gi, '"')
+    .replace(/&#39;|&#x27;|&apos;/gi, "'");
+}
+
+function hasPotentialXss(value) {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const normalized = decodeMarkupTokens(value).trim();
+
+  if (normalized === '') {
+    return false;
+  }
+
+  return (
+    /<\s*(?:\/\s*)?[a-z!][^>]*>/i.test(normalized) ||
+    /javascript\s*:/i.test(normalized) ||
+    /data\s*:\s*text\/html/i.test(normalized) ||
+    /on[a-z]+\s*=/i.test(normalized)
+  );
+}
+
+function addXssValidationError(errors, field, value) {
+  if (hasPotentialXss(value)) {
+    errors[field] = ['contains disallowed HTML or script content'];
+  }
+}
+
 function requireUserFields(body, fields) {
   if (!body || typeof body !== 'object' || !body.user || typeof body.user !== 'object') {
     throw validationError({ user: ['is required'] });
@@ -87,7 +120,10 @@ function requireArticlePayload(body) {
   ['title', 'description', 'body'].forEach((field) => {
     if (typeof article[field] !== 'string' || article[field].trim() === '') {
       errors[field] = ['is required'];
+      return;
     }
+
+    addXssValidationError(errors, field, article[field]);
   });
 
   if (
@@ -95,6 +131,8 @@ function requireArticlePayload(body) {
     (!Array.isArray(article.tagList) || article.tagList.some((tag) => typeof tag !== 'string'))
   ) {
     errors.tagList = ['must be an array of strings'];
+  } else if (Array.isArray(article.tagList) && article.tagList.some((tag) => hasPotentialXss(tag))) {
+    errors.tagList = ['contains disallowed HTML or script content'];
   }
 
   if (Object.keys(errors).length > 0) {
@@ -105,7 +143,7 @@ function requireArticlePayload(body) {
     title: article.title.trim(),
     description: article.description.trim(),
     body: article.body.trim(),
-    tagList: Array.isArray(article.tagList) ? article.tagList : []
+    tagList: Array.isArray(article.tagList) ? article.tagList.map((tag) => tag.trim()) : []
   };
 }
 
@@ -134,6 +172,8 @@ function getUpdateArticlePayload(body) {
     if (Object.prototype.hasOwnProperty.call(body.article, field)) {
       if (typeof body.article[field] !== 'string' || body.article[field].trim() === '') {
         errors[field] = ['must be a non-empty string'];
+      } else if (hasPotentialXss(body.article[field])) {
+        errors[field] = ['contains disallowed HTML or script content'];
       } else {
         updates[field] = body.article[field].trim();
       }
@@ -154,6 +194,10 @@ function requireCommentPayload(body) {
 
   if (typeof body.comment.body !== 'string' || body.comment.body.trim() === '') {
     throw validationError({ body: ['is required'] });
+  }
+
+  if (hasPotentialXss(body.comment.body)) {
+    throw validationError({ body: ['contains disallowed HTML or script content'] });
   }
 
   return {
